@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudTube Simulator</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #09090b;
+            --surface-color: #18181b;
+            --border-color: #27272a;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --accent-color: #ffffff;
+            --hover-bg: #27272a;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Navbar */
+        .yt-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            height: 64px;
+            background: var(--surface-color);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            z-index: 100;
+        }
+
+        .yt-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .yt-logo-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--text-primary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .yt-logo-icon::after {
+            content: '';
+            border-left: 8px solid var(--surface-color);
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            margin-left: 2px;
+        }
+
+        .yt-search {
+            display: flex;
+            align-items: center;
+            width: 40%;
+            max-width: 500px;
+            position: relative;
+        }
+
+        .yt-search input {
+            flex: 1;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 10px 16px 10px 40px;
+            color: var(--text-primary);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .yt-search input:focus {
+            border-color: var(--text-secondary);
+            background: var(--surface-color);
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+        }
+
+        .yt-search button {
+            position: absolute;
+            left: 12px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-secondary);
+            padding: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .yt-search button svg {
+            fill: var(--text-secondary) !important;
+            width: 18px;
+            height: 18px;
+        }
+
+        .yt-user {
+            width: 36px;
+            height: 36px;
+            background: var(--hover-bg);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        /* Layout */
+        .yt-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .yt-sidebar {
+            width: 240px;
+            padding: 20px 12px;
+            background: var(--surface-color);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .yt-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+
+        .yt-nav-item svg {
+            fill: var(--text-secondary) !important;
+            width: 20px;
+            height: 20px;
+        }
+
+        .yt-nav-item:hover {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+        }
+
+        .yt-nav-item:hover svg {
+            fill: var(--text-primary) !important;
+        }
+
+        .yt-nav-item.active {
+            background: var(--hover-bg);
+            color: var(--text-primary);
+        }
+
+        .yt-nav-item.active svg {
+            fill: var(--text-primary) !important;
+        }
+
+        hr {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 16px 12px;
+        }
+
+        .yt-main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 32px;
+        }
+
+        .content-wrapper {
+            display: flex;
+            gap: 40px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .player-section {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .recommendations {
+            width: 380px;
+            flex-shrink: 0;
+        }
+
+        /* Player */
+        .video-container {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #000;
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Video Details */
+        #status-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin: 0;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+        }
+
+        .video-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .channel-info {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .channel-avatar {
+            width: 44px;
+            height: 44px;
+            background: var(--text-primary);
+            color: var(--surface-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .channel-name {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: var(--text-primary);
+        }
+
+        .sub-count {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .yt-btn {
+            background: var(--surface-color);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .yt-btn:hover {
+            background: var(--hover-bg);
+            border-color: #52525b;
+        }
+
+        .yt-btn.danger {
+            background: var(--surface-color);
+            color: var(--danger);
+            border-color: #7f1d1d;
+        }
+
+        .yt-btn.danger:hover {
+            background: #450a0a;
+            border-color: var(--danger);
+        }
+
+        .yt-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Status Panel */
+        .cloud-status-panel {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .cloud-status-panel h3 {
+            margin: 0 0 20px 0;
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .status-grid div {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            border-radius: 10px;
+        }
+
+        .status-grid strong {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-grid span {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .logs-container {
+            background: #000000;
+            border-radius: 10px;
+            padding: 16px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.85rem;
+            height: 140px;
+            overflow-y: auto;
+            color: #d4d4d4;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        #event-logs {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        #event-logs li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b;
+        }
+
+        /* Video Grid */
+        .yt-video-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .video-card {
+            display: flex;
+            gap: 16px;
+            cursor: pointer;
+            border-radius: 12px;
+            padding: 8px;
+            transition: background 0.2s;
+        }
+
+        .video-card:hover {
+            background: var(--surface-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .custom-thumbnail {
+            width: 160px;
+            height: 90px;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: white;
+            box-sizing: border-box;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Keep custom thumbnail patterns untouched */
+        .thumb-cloud {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        }
+
+        .thumb-cloud::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 2px, transparent 2.5px),
+                radial-gradient(circle at 70% 60%, rgba(255, 255, 255, 0.1) 2px, transparent 2.5px);
+            background-size: 30px 30px;
+            z-index: 0;
+        }
+
+        .thumb-nature {
+            background: linear-gradient(to bottom, #4facfe 0%, #00f2fe 50%, #43a047 50%, #2e7d32 100%);
+        }
+
+        .thumb-nature::after {
+            content: '⛰️';
+            position: absolute;
+            font-size: 3.5rem;
+            opacity: 0.25;
+            bottom: -15px;
+            right: -5px;
+            z-index: 0;
+        }
+
+        .thumb-tech {
+            background: linear-gradient(45deg, #141e30, #243b55);
+        }
+
+        .thumb-tech::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 0, 0.05) 2px, rgba(0, 255, 0, 0.05) 4px);
+            z-index: 0;
+        }
+
+        .thumb-tech::after {
+            content: '</>';
+            position: absolute;
+            font-family: monospace;
+            font-size: 4rem;
+            color: rgba(0, 255, 0, 0.08);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 0;
+        }
+
+        .card-info {
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            padding-top: 2px;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.4;
+        }
+
+        .card-meta {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Home Browsing Mode */
+        .content-wrapper.home-mode .player-section {
+            display: none;
+        }
+
+        .home-banner {
+            display: none;
+            background: linear-gradient(135deg, #18181b 0%, #09090b 100%);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            margin-bottom: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content-wrapper.home-mode .home-banner {
+            display: block;
+        }
+
+        .home-banner h1 {
+            margin: 0 0 12px 0;
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .home-banner p {
+            margin: 0;
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        .home-banner::after {
+            content: '☁️';
+            position: absolute;
+            font-size: 12rem;
+            opacity: 0.03;
+            right: 40px;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .content-wrapper.home-mode .recommendations {
+            width: 100%;
+        }
+
+        .content-wrapper.home-mode .yt-video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .content-wrapper.home-mode .video-card {
+            flex-direction: column;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+            gap: 12px;
+            transition: transform 0.2s ease;
+        }
+
+        .content-wrapper.home-mode .video-card:hover {
+            background: transparent;
+            transform: scale(1.02);
+        }
+
+        .content-wrapper.home-mode .custom-thumbnail {
+            width: 100%;
+            height: 200px;
+            border-radius: 12px;
+        }
+
+        .content-wrapper.home-mode .card-info {
+            padding: 0 4px;
+        }
+
+        .content-wrapper.home-mode .card-title {
+            font-size: 1.05rem;
+        }
+
+        @media (max-width: 1100px) {
+            .content-wrapper {
+                flex-direction: column;
+            }
+
+            .recommendations {
+                width: 100%;
+            }
+
+            .video-card {
+                flex-direction: row;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .yt-sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav class="yt-navbar">
+        <div class="yt-logo" style="cursor: pointer;" onclick="goHome()">
+            <div class="yt-logo-icon"></div>
+            <span>CloudTube</span>
+        </div>
+        <div class="yt-search">
+            <input type="text" placeholder="Search videos...">
+            <button>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
+                    <path
+                        d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+                </svg>
+            </button>
+        </div>
+        <div class="yt-user">IT</div>
+    </nav>
+
+    <div class="yt-layout">
+        <aside class="yt-sidebar">
+            <div class="yt-nav-item active" onclick="goHome()">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M12 3l-10 9h3v9h14v-9h3l-10-9zm0 0" />
+                </svg>
+                Home
+            </div>
+            <div class="yt-nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.5 2.5v19l-5.5-3.5-5.5 3.5v-19z" />
+                </svg>
+                Library
+            </div>
+            <div class="yt-nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path
+                        d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z" />
+                </svg>
+                Cloud Nodes
+            </div>
+            <hr>
+            <div class="yt-nav-item">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                    <path
+                        d="M19.43 12.98c.04-.32.07-.64.07-.98s-.03-.66-.07-.98l2.11-1.65c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.3-.61-.22l-2.49 1c-.52-.4-1.08-.73-1.69-.98l-.38-2.65C14.46 2.18 14.25 2 14 2h-4c-.25 0-.46.18-.49.42l-.38 2.65c-.61.25-1.17.59-1.69.98l-2.49-1c-.23-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64l2.11 1.65c-.04.32-.07.65-.07.98s.03.66.07.98l-2.11 1.65c-.19.15-.24.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1c.52.4 1.08.73 1.69.98l.38 2.65c.03.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.17-.59 1.69-.98l2.49 1c.23.09.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.65zM12 15.5c-1.93 0-3.5-1.57-3.5-3.5s1.57-3.5 3.5-3.5 3.5 1.57 3.5 3.5-1.57 3.5-3.5 3.5z" />
+                </svg>
+                Settings
+            </div>
+        </aside>
+
+        <main class="yt-main">
+            <div class="content-wrapper home-mode" id="main-content">
+
+                <!-- Left: Player and Info -->
+                <div class="player-section">
+                    <div class="video-container">
+                        <video id="main-video" controls></video>
+                        <div id="buffering-overlay" class="overlay">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+
+                    <div class="video-details">
+                        <h1 id="status-title">Select a video to play</h1>
+
+                        <div class="video-meta-row">
+                            <div class="channel-info">
+                                <div class="channel-avatar" id="channel-avatar">C</div>
+                                <div>
+                                    <div class="channel-name" id="channel-name">Cloud Channel</div>
+                                    <div class="sub-count" id="channel-subs">1.2M subscribers</div>
+                                </div>
+                            </div>
+
+                            <div class="action-buttons">
+                                <select id="quality-selector" class="yt-btn">
+                                    <option value="1080p">1080p HD</option>
+                                    <option value="720p">720p</option>
+                                    <option value="480p">480p</option>
+                                </select>
+                                <button id="failure-btn" class="yt-btn danger">Simulate Failure</button>
+                            </div>
+                        </div>
+
+                        <div class="cloud-status-panel">
+                            <h3>Cloud Infrastructure Status</h3>
+                            <div class="status-grid">
+                                <div>
+                                    <strong>Server Status</strong>
+                                    <span id="status-server" style="color: #2ecc71;">Online</span>
+                                </div>
+                                <div>
+                                    <strong>Streaming Via</strong>
+                                    <span id="status-routing">Standby</span>
+                                </div>
+                                <div>
+                                    <strong>Live Viewers</strong>
+                                    <span id="status-viewers">0</span>
+                                </div>
+                            </div>
+                            <div class="logs-container">
+                                <ul id="event-logs"></ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Recommended Videos -->
+                <div class="recommendations">
+
+                    <div class="home-banner">
+                        <h1>Welcome to CloudTube</h1>
+                        <p>Explore our highly available, adaptive bitrate video streaming infrastructure. Select any
+                            video below to test disaster recovery and cloud routing capabilities in real-time.</p>
+                    </div>
+
+                    <div id="video-grid" class="yt-video-grid">
+                        <!-- JS injected -->
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- 1. DATA LAYER ---
+        // Simulates a backend database (like Supabase PostgreSQL) storing exactly 6 video entries
+        const videos = [
+            {
+                id: 1,
+                title: "Fundamental of Cloud Computing",
+                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample1.mp4",
+                thumbClass: "thumb-cloud",
+                channel: "Tech Edu",
+                views: "34K views",
+                viewers: 1200
+            },
+            {
+                id: 2,
+                title: "Nature",
+                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample2.mp4",
+                thumbUrl: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=400&q=80",
+                channel: "Planet Earth",
+                views: "1.2M views",
+                viewers: 4500 // Viewers > 3000 to trigger high traffic logic
+            },
+            {
+                id: 3,
+                title: "Lazy Tech Gadgets",
+                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample3.mp4",
+                thumbUrl: "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=400&q=80",
+                channel: "Future Gadgets",
+                views: "89K views",
+                viewers: 800
+            },
+            {
+                id: 4,
+                title: "Building a Secret Project BMW E30 | NIGHTRIDE",
+                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample4.mp4",
+                thumbUrl: "images/nightride.png",
+                channel: "NIGHTRIDE",
+                views: "245K views",
+                viewers: 1500
+            },
+            {
+                id: 5,
+                title: "3 Days in Arctic Survival Shelter - Solo Bushcraft Camping & Blacksmithing.",
+                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample5.mp4",
+                thumbUrl: "images/outdoorboys.png",
+                channel: "Outdoor Boys",
+                views: "890K views",
+                viewers: 3200
+            },
+            {
+                id: 6,
+                title: "AIB : Honest Engineering Campus Placements | Part 01",
+                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample6.mp4",
+                thumbUrl: "images/aib.png",
+                channel: "AIB",
+                views: "3.4M views",
+                viewers: 12000
+            }
+        ];
+
+        // --- 2. STATE MANAGEMENT ---
+        let serverStatus = 'online'; // Possible states: 'online', 'failed', 'backup'
+        let currentVideo = null;
+
+        // DOM References
+        const contentWrapper = document.getElementById('main-content');
+        const videoGrid = document.getElementById('video-grid');
+        const mainVideo = document.getElementById('main-video');
+        const overlay = document.getElementById('buffering-overlay');
+        const eventLogs = document.getElementById('event-logs');
+        const failureBtn = document.getElementById('failure-btn');
+        const qualitySelector = document.getElementById('quality-selector');
+
+        const sTitle = document.getElementById('status-title');
+        const sServer = document.getElementById('status-server');
+        const sRouting = document.getElementById('status-routing');
+        const sViewers = document.getElementById('status-viewers');
+        const channelAvatar = document.getElementById('channel-avatar');
+        const channelName = document.getElementById('channel-name');
+
+        function addLog(message, type = "info") {
+            const li = document.createElement('li');
+            const now = new Date();
+            const time = now.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+            let color = '#aaaaaa';
+            if (type === 'error') color = '#ff4a4a';
+            if (type === 'warning') color = '#f1c40f';
+            if (type === 'success') color = '#2ecc71';
+
+            li.innerHTML = `<span style="color: #717171;">[${time}]</span> <span style="color: ${color}">${message}</span>`;
+            eventLogs.appendChild(li);
+            eventLogs.scrollTop = eventLogs.scrollHeight;
+        }
+
+        // --- 3. UI RENDERING ---
+        function renderGrid() {
+            videoGrid.innerHTML = '';
+            videos.forEach(v => {
+                const card = document.createElement('div');
+                card.className = 'video-card';
+                card.onclick = () => selectVideo(v.id);
+
+                let thumbHTML = '';
+                if (v.thumbUrl) {
+                    thumbHTML = `<div class="custom-thumbnail" style="background-image: url('${v.thumbUrl}'); background-size: cover; background-position: center; padding: 0; text-shadow: none;"></div>`;
+                } else {
+                    thumbHTML = `<div class="custom-thumbnail ${v.thumbClass}">
+                        <span style="position: relative; z-index: 1;">${v.title}</span>
+                    </div>`;
+                }
+
+                card.innerHTML = `
+                    ${thumbHTML}
+                    <div class="card-info">
+                        <div class="card-title">${v.title}</div>
+                        <div class="card-meta">${v.channel}</div>
+                        <div class="card-meta">${v.views} • 2 days ago</div>
+                    </div>
+                `;
+                videoGrid.appendChild(card);
+            });
+        }
+
+        // --- 4. STREAMING SIMULATION ---
+        function goHome() {
+            contentWrapper.classList.add('home-mode');
+            mainVideo.pause();
+            mainVideo.src = "";
+            currentVideo = null;
+        }
+
+        function selectVideo(id) {
+            contentWrapper.classList.remove('home-mode');
+
+            if (serverStatus === 'failed') {
+                addLog("ERROR: Cannot connect. Main server is offline and failover is not complete.", "error");
+                return;
+            }
+
+            currentVideo = videos.find(v => v.id === id);
+
+            // Update UI details to mimic YouTube
+            sTitle.textContent = currentVideo.title;
+            sViewers.textContent = currentVideo.viewers.toLocaleString();
+            channelName.textContent = currentVideo.channel;
+            channelAvatar.textContent = currentVideo.channel.charAt(0);
+
+            if (serverStatus === 'online') {
+                sServer.textContent = "Connected to Cloud Infrastructure";
+                sServer.style.color = "#2ecc71";
+            }
+
+            mainVideo.pause();
+            mainVideo.src = "";
+
+            overlay.classList.remove('hidden');
+            addLog(`Requested video stream: ${currentVideo.title}`, "info");
+            addLog("Connecting to Supabase cloud storage...", "info");
+
+            if (currentVideo.viewers > 3000) {
+                addLog("High traffic detected, switching to backup server", "warning");
+            }
+
+            setTimeout(() => {
+                if (serverStatus === 'failed') return;
+                addLog("Fetching video from cloud...", "info");
+                sRouting.textContent = serverStatus === 'backup' ? "Backup CDN Edge" : "Streaming via Supabase Cloud Storage";
+            }, 800);
+
+            setTimeout(() => {
+                if (serverStatus === 'failed') return;
+                addLog("Stream established. Handshake complete.", "success");
+                overlay.classList.add('hidden');
+                mainVideo.src = currentVideo.url;
+                mainVideo.load();
+                mainVideo.play().catch(e => {
+                    addLog("Autoplay requires interaction. Press play.", "warning");
+                });
+            }, 2000);
+        }
+
+        // --- 5. HIGH AVAILABILITY & DISASTER RECOVERY ---
+        failureBtn.onclick = () => {
+            if (serverStatus === 'failed' || serverStatus === 'backup') return;
+
+            serverStatus = 'failed';
+            failureBtn.disabled = true;
+
+            mainVideo.pause();
+            overlay.classList.remove('hidden');
+
+            sServer.textContent = "Offline";
+            sServer.style.color = "#ff4a4a";
+            sRouting.textContent = "Connection Terminated";
+            sViewers.textContent = "0";
+
+            addLog("CRITICAL ALARM: Primary server failure detected!", "error");
+
+            setTimeout(() => {
+                addLog("Initiating automated failover protocol...", "warning");
+                sRouting.textContent = "Rerouting Traffic...";
+            }, 1500);
+
+            setTimeout(() => {
+                addLog("Backup server online. DNS records updated.", "success");
+                serverStatus = 'backup';
+                sServer.textContent = "Online (Backup)";
+                sServer.style.color = "#f1c40f";
+                sRouting.textContent = "Backup Server (us-east-2)";
+                failureBtn.textContent = "Running on Backup";
+
+                if (currentVideo) {
+                    addLog("Attempting to recover active stream...", "info");
+                    sViewers.textContent = currentVideo.viewers.toLocaleString();
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        mainVideo.play().catch(() => { });
+                        addLog("Stream recovered successfully.", "success");
+                    }, 1500);
+                } else {
+                    overlay.classList.add('hidden');
+                }
+            }, 4500);
+        };
+
+        // --- 6. ADAPTIVE BITRATE STREAMING ---
+        qualitySelector.onchange = (e) => {
+            const q = e.target.value;
+            addLog(`Client requested quality change to ${q}`, "info");
+
+            if (currentVideo && !overlay.classList.contains('hidden')) return;
+
+            if (currentVideo) {
+                overlay.classList.remove('hidden');
+                const wasPlaying = !mainVideo.paused;
+                mainVideo.pause();
+
+                setTimeout(() => {
+                    if (serverStatus !== 'failed') {
+                        overlay.classList.add('hidden');
+                        if (wasPlaying) mainVideo.play().catch(() => { });
+                        addLog("Adaptive bitrate streaming active", "success");
+                    }
+                }, 1000);
+            }
+        };
+
+        // Init
+        overlay.classList.add('hidden'); // Hide buffering initially
+        renderGrid();
+        addLog("System initialized. Edge nodes ready.", "success");
+        addLog("Awaiting client requests.", "info");
+    </script>
+</body>
+
+</html>
