@@ -1091,12 +1091,16 @@
 
             if (allSame) {
                 noteEl.textContent = currentVideo.isUploaded ?
-                    "Uploaded video is available as original quality only" :
-                    "Only one uploaded quality available for this video";
+                    "Uploaded video is original quality (Visual Simulator Active)" :
+                    "Single quality source (Visual Simulator Active)";
                 noteEl.style.display = "block";
             } else {
                 noteEl.style.display = "none";
             }
+
+            // Reset visual quality to 1080p for new video
+            qualitySelector.value = "1080p";
+            mainVideo.style.filter = "none";
 
             mainVideo.pause();
             mainVideo.src = "";
@@ -1190,13 +1194,36 @@
             const currentTime = mainVideo.currentTime;
             const wasPlaying = !mainVideo.paused;
             mainVideo.pause();
+            
+            // Visual Simulation of Quality Drop
+            if (q === "1080p") {
+                mainVideo.style.filter = "none";
+            } else if (q === "720p") {
+                mainVideo.style.filter = "blur(1px)";
+            } else if (q === "360p") {
+                mainVideo.style.filter = "blur(3px) contrast(0.9)";
+            }
 
             // Switch source to the selected quality URL
-            mainVideo.src = currentVideo.qualities[q] || currentVideo.qualities["1080p"];
+            const baseSrc = currentVideo.qualities[q] || currentVideo.qualities["1080p"];
+            const isSameUrl = Object.values(currentVideo.qualities).every(u => u === baseSrc);
+            
+            if (isSameUrl) {
+                // If the video only has one actual source file, append a cache-busting parameter 
+                // so the browser physically re-fetches and shows buffering, perfecting the illusion.
+                mainVideo.src = baseSrc + "?q=" + q + "&t=" + Date.now();
+            } else {
+                mainVideo.src = baseSrc;
+            }
+            
             mainVideo.load();
 
-            // Restore playback state
-            mainVideo.currentTime = currentTime;
+            // Restore playback state safely only after metadata has loaded
+            const restoreTime = () => {
+                mainVideo.currentTime = currentTime;
+                mainVideo.removeEventListener('loadedmetadata', restoreTime);
+            };
+            mainVideo.addEventListener('loadedmetadata', restoreTime);
 
             setTimeout(() => {
                 if (serverStatus !== 'failed') {
@@ -1206,7 +1233,7 @@
                     }
                     addLog(`Adaptive bitrate active. Switched stream to ${q}.`, "success");
                 }
-            }, 800);
+            }, 1200);
         };
 
         // --- 7. VIDEO UPLOAD FEATURE ---
