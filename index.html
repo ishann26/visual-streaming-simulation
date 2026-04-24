@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CloudTube Simulator</title>
+    <!-- Use Supabase JavaScript client from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -567,6 +569,73 @@
             line-height: 1.5;
         }
 
+        /* Upload Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .modal-content {
+            background: var(--surface-color);
+            padding: 24px;
+            border-radius: 12px;
+            width: 400px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+        }
+
+        .yt-input {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .yt-input:focus {
+            border-color: var(--text-secondary);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        #upload-status {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-align: center;
+            min-height: 20px;
+        }
+
         /* Home Browsing Mode */
         .content-wrapper.home-mode .player-section {
             display: none;
@@ -690,7 +759,15 @@
                 </svg>
             </button>
         </div>
-        <div class="yt-user">IT</div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+            <button class="yt-btn" onclick="openUploadModal()" style="display: flex; align-items: center; gap: 6px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                    <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
+                </svg>
+                Upload
+            </button>
+            <div class="yt-user">IT</div>
+        </div>
     </nav>
 
     <div class="yt-layout">
@@ -748,13 +825,18 @@
                                 </div>
                             </div>
 
-                            <div class="action-buttons">
-                                <select id="quality-selector" class="yt-btn">
-                                    <option value="1080p">1080p HD</option>
-                                    <option value="720p">720p</option>
-                                    <option value="480p">480p</option>
-                                </select>
-                                <button id="failure-btn" class="yt-btn danger">Simulate Failure</button>
+                            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">
+                                <div class="action-buttons">
+                                    <select id="quality-selector" class="yt-btn">
+                                        <option value="1080p">1080p HD</option>
+                                        <option value="720p">720p</option>
+                                        <option value="360p">360p</option>
+                                    </select>
+                                    <button id="failure-btn" class="yt-btn danger">Simulate Failure</button>
+                                </div>
+                                <div id="quality-note"
+                                    style="display:none; color: var(--text-secondary); font-size: 0.85rem; padding-right: 2px;">
+                                </div>
                             </div>
                         </div>
 
@@ -799,14 +881,44 @@
         </main>
     </div>
 
+    <!-- Upload Modal -->
+    <div id="upload-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>Upload Video</h2>
+            <input type="text" id="upload-title" placeholder="Video Title" class="yt-input">
+            <input type="file" id="upload-file" accept="video/mp4,video/x-m4v,video/*" class="yt-input">
+            <div class="modal-actions">
+                <button class="yt-btn" onclick="closeUploadModal()">Cancel</button>
+                <button class="yt-btn" style="background: var(--text-primary); color: var(--bg-color);"
+                    onclick="uploadVideo()">Upload</button>
+            </div>
+            <div id="upload-status"></div>
+        </div>
+    </div>
+
     <script>
+        const SUPABASE_URL = "https://fwcpxpbwdsveaiijwect.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_w7d5dLqN3TMM4nTaL0pf6w_BUfz05gV";
+
+        let supabaseClient;
+        try {
+            // Create the Supabase client
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (err) {
+            // Catch error if placeholder is used so it doesn't break the UI
+        }
+
         // --- 1. DATA LAYER ---
         // Simulates a backend database (like Supabase PostgreSQL) storing exactly 6 video entries
         const videos = [
             {
                 id: 1,
                 title: "Fundamental of Cloud Computing",
-                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample1.mp4",
+                qualities: {
+                    "1080p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample1.mp4",
+                    "720p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample1.mp4",
+                    "360p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample1.mp4"
+                },
                 thumbClass: "thumb-cloud",
                 channel: "Tech Edu",
                 views: "34K views",
@@ -815,7 +927,11 @@
             {
                 id: 2,
                 title: "Nature",
-                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample2.mp4",
+                qualities: {
+                    "1080p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample2.mp4",
+                    "720p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample2.mp4",
+                    "360p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample2.mp4"
+                },
                 thumbUrl: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?auto=format&fit=crop&w=400&q=80",
                 channel: "Planet Earth",
                 views: "1.2M views",
@@ -824,7 +940,11 @@
             {
                 id: 3,
                 title: "Lazy Tech Gadgets",
-                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample3.mp4",
+                qualities: {
+                    "1080p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample3.mp4",
+                    "720p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample3.mp4",
+                    "360p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample3.mp4"
+                },
                 thumbUrl: "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=400&q=80",
                 channel: "Future Gadgets",
                 views: "89K views",
@@ -833,7 +953,11 @@
             {
                 id: 4,
                 title: "Building a Secret Project BMW E30 | NIGHTRIDE",
-                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample4.mp4",
+                qualities: {
+                    "1080p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample4.mp4",
+                    "720p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample4.mp4",
+                    "360p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample4.mp4"
+                },
                 thumbUrl: "images/nightride.png",
                 channel: "NIGHTRIDE",
                 views: "245K views",
@@ -842,7 +966,11 @@
             {
                 id: 5,
                 title: "3 Days in Arctic Survival Shelter - Solo Bushcraft Camping & Blacksmithing.",
-                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample5.mp4",
+                qualities: {
+                    "1080p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample5.mp4",
+                    "720p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample5.mp4",
+                    "360p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample5.mp4"
+                },
                 thumbUrl: "images/outdoorboys.png",
                 channel: "Outdoor Boys",
                 views: "890K views",
@@ -851,7 +979,11 @@
             {
                 id: 6,
                 title: "AIB : Honest Engineering Campus Placements | Part 01",
-                url: "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample6.mp4",
+                qualities: {
+                    "1080p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample6.mp4",
+                    "720p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample6.mp4",
+                    "360p": "https://fwcpxpbwdsveaiijwect.supabase.co/storage/v1/object/public/videos/sample6.mp4"
+                },
                 thumbUrl: "images/aib.png",
                 channel: "AIB",
                 views: "3.4M views",
@@ -952,6 +1084,20 @@
                 sServer.style.color = "#2ecc71";
             }
 
+            // Check qualities and update note
+            const qualitiesList = Object.values(currentVideo.qualities);
+            const allSame = qualitiesList.every(u => u === qualitiesList[0]);
+            const noteEl = document.getElementById('quality-note');
+
+            if (allSame) {
+                noteEl.textContent = currentVideo.isUploaded ?
+                    "Uploaded video is available as original quality only" :
+                    "Only one uploaded quality available for this video";
+                noteEl.style.display = "block";
+            } else {
+                noteEl.style.display = "none";
+            }
+
             mainVideo.pause();
             mainVideo.src = "";
 
@@ -973,7 +1119,10 @@
                 if (serverStatus === 'failed') return;
                 addLog("Stream established. Handshake complete.", "success");
                 overlay.classList.add('hidden');
-                mainVideo.src = currentVideo.url;
+
+                const selectedQuality = qualitySelector.value;
+                mainVideo.src = currentVideo.qualities[selectedQuality] || currentVideo.qualities["1080p"];
+
                 mainVideo.load();
                 mainVideo.play().catch(e => {
                     addLog("Autoplay requires interaction. Press play.", "warning");
@@ -1026,26 +1175,134 @@
         };
 
         // --- 6. ADAPTIVE BITRATE STREAMING ---
+        // Real quality switching requires multiple encoded versions of the video.
+        // We use separate URLs for each quality to fetch the appropriately encoded file.
         qualitySelector.onchange = (e) => {
             const q = e.target.value;
             addLog(`Client requested quality change to ${q}`, "info");
 
-            if (currentVideo && !overlay.classList.contains('hidden')) return;
+            if (!currentVideo) return;
 
-            if (currentVideo) {
-                overlay.classList.remove('hidden');
-                const wasPlaying = !mainVideo.paused;
-                mainVideo.pause();
+            // Show buffering overlay
+            overlay.classList.remove('hidden');
+
+            // Save playback state
+            const currentTime = mainVideo.currentTime;
+            const wasPlaying = !mainVideo.paused;
+            mainVideo.pause();
+
+            // Switch source to the selected quality URL
+            mainVideo.src = currentVideo.qualities[q] || currentVideo.qualities["1080p"];
+            mainVideo.load();
+
+            // Restore playback state
+            mainVideo.currentTime = currentTime;
+
+            setTimeout(() => {
+                if (serverStatus !== 'failed') {
+                    overlay.classList.add('hidden');
+                    if (wasPlaying) {
+                        mainVideo.play().catch(() => { });
+                    }
+                    addLog(`Adaptive bitrate active. Switched stream to ${q}.`, "success");
+                }
+            }, 800);
+        };
+
+        // --- 7. VIDEO UPLOAD FEATURE ---
+        // How upload works: We use the Supabase Storage JS client to push the file to a bucket named "videos".
+        // Once uploaded, we retrieve a public URL and dynamically add it to our local video array.
+
+        function openUploadModal() {
+            document.getElementById('upload-modal').classList.remove('hidden');
+            document.getElementById('upload-status').textContent = '';
+            document.getElementById('upload-title').value = '';
+            document.getElementById('upload-file').value = '';
+        }
+
+        function closeUploadModal() {
+            document.getElementById('upload-modal').classList.add('hidden');
+        }
+
+        async function uploadVideo() {
+            const titleInput = document.getElementById('upload-title').value.trim();
+            const fileInput = document.getElementById('upload-file').files[0];
+            const statusEl = document.getElementById('upload-status');
+
+            if (!titleInput || !fileInput) {
+                statusEl.textContent = 'Please provide both a title and a video file.';
+                statusEl.style.color = 'var(--danger)';
+                return;
+            }
+
+            if (SUPABASE_URL === "PASTE_MY_SUPABASE_PROJECT_URL_HERE" || !supabaseClient) {
+                statusEl.textContent = 'Please configure SUPABASE_URL and SUPABASE_ANON_KEY in the code.';
+                statusEl.style.color = 'var(--warning)';
+                return;
+            }
+
+            try {
+                statusEl.textContent = 'Uploading to Supabase Storage...';
+                statusEl.style.color = 'var(--text-secondary)';
+
+                // 1. Generate unique file name to prevent overwrites using Date.now()
+                const fileExt = fileInput.name.split('.').pop();
+                const fileName = `upload_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+                // 2. Upload file
+                const { data, error } = await supabaseClient.storage
+                    .from('videos')
+                    .upload(fileName, fileInput);
+
+                if (error) throw error;
+
+                // 3. Get the public URL for the uploaded file
+                const { data: publicUrlData } = supabaseClient.storage
+                    .from('videos')
+                    .getPublicUrl(fileName);
+
+                const publicUrl = publicUrlData.publicUrl;
+
+                // 4. Create new video object
+                // Real quality switching requires multiple encoded versions (e.g. 1080p, 720p, 360p).
+                // Since the user only uploaded a single file, we use the same URL for all qualities.
+                const newVideo = {
+                    id: videos.length + 1,
+                    title: titleInput,
+                    qualities: {
+                        "1080p": publicUrl,
+                        "720p": publicUrl,
+                        "360p": publicUrl
+                    },
+                    thumbClass: "thumb-tech",
+                    channel: "User Uploads",
+                    views: "0 views",
+                    viewers: 1,
+                    isUploaded: true
+                };
+
+                // Add to the front of the grid
+                videos.unshift(newVideo);
+                renderGrid();
+
+                statusEl.textContent = 'Video uploaded successfully';
+                statusEl.style.color = 'var(--success)';
+
+                addLog(`Successfully uploaded new video: ${titleInput}`, "success");
 
                 setTimeout(() => {
-                    if (serverStatus !== 'failed') {
-                        overlay.classList.add('hidden');
-                        if (wasPlaying) mainVideo.play().catch(() => { });
-                        addLog("Adaptive bitrate streaming active", "success");
+                    closeUploadModal();
+                    if (!contentWrapper.classList.contains('home-mode')) {
+                        goHome();
                     }
-                }, 1000);
+                }, 1500);
+
+            } catch (err) {
+                console.error(err);
+                statusEl.textContent = err.message;
+                statusEl.style.color = 'var(--danger)';
             }
-        };
+        }
 
         // Init
         overlay.classList.add('hidden'); // Hide buffering initially
