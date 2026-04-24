@@ -909,8 +909,8 @@
         }
 
         // --- 1. DATA LAYER ---
-        // Simulates a backend database (like Supabase PostgreSQL) storing exactly 6 video entries
-        const videos = [
+        // Simulates a backend database storing exactly 6 default video entries
+        const defaultVideos = [
             {
                 id: 1,
                 title: "Fundamental of Cloud Computing",
@@ -990,6 +990,48 @@
                 viewers: 12000
             }
         ];
+
+        let videos = [...defaultVideos];
+
+        // Fetch videos from Supabase database to make them visible to everyone
+        // Storage stores the actual video file. Database stores the video information.
+        async function fetchVideosFromDatabase() {
+            if (!supabaseClient) return;
+            try {
+                addLog("Fetching uploaded videos from database...", "info");
+                const { data, error } = await supabaseClient
+                    .from('videos')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                if (data && data.length > 0) {
+                    const dbVideos = data.map(v => ({
+                        id: 'db_' + v.id,
+                        title: v.title,
+                        qualities: {
+                            "1080p": v.video_url,
+                            "720p": v.video_url,
+                            "360p": v.video_url
+                        },
+                        thumbClass: "thumb-tech", 
+                        thumbUrl: v.thumbnail_url,
+                        channel: v.channel || "User Uploads",
+                        views: v.views || "0 views",
+                        viewers: v.viewers || 1,
+                        isUploaded: true
+                    }));
+                    
+                    videos = [...dbVideos, ...defaultVideos];
+                    renderGrid();
+                    addLog("Successfully loaded community videos from database.", "success");
+                }
+            } catch (e) {
+                console.error("Error fetching videos from DB:", e);
+                addLog("Failed to fetch community videos from database.", "error");
+            }
+        }
 
         // --- 2. STATE MANAGEMENT ---
         let serverStatus = 'online'; // Possible states: 'online', 'failed', 'backup'
@@ -1290,21 +1332,42 @@
 
                 const publicUrl = publicUrlData.publicUrl;
 
-                // 4. Create new video object
+                // 4. Save metadata to the Supabase database
+                // This makes the video visible to everyone opening the website
+                statusEl.textContent = 'Saving to database...';
+                const { data: dbData, error: dbError } = await supabaseClient
+                    .from('videos')
+                    .insert([
+                        {
+                            title: titleInput,
+                            video_url: publicUrl,
+                            thumbnail_url: null,
+                            channel: "User Uploads",
+                            views: "0 views",
+                            viewers: 1
+                        }
+                    ])
+                    .select();
+                
+                if (dbError) throw dbError;
+                
+                const insertedVideo = dbData[0];
+
+                // 5. Create new video object for UI
                 // Real quality switching requires multiple encoded versions (e.g. 1080p, 720p, 360p).
                 // Since the user only uploaded a single file, we use the same URL for all qualities.
                 const newVideo = {
-                    id: videos.length + 1,
-                    title: titleInput,
+                    id: 'db_' + insertedVideo.id,
+                    title: insertedVideo.title,
                     qualities: {
-                        "1080p": publicUrl,
-                        "720p": publicUrl,
-                        "360p": publicUrl
+                        "1080p": insertedVideo.video_url,
+                        "720p": insertedVideo.video_url,
+                        "360p": insertedVideo.video_url
                     },
-                    thumbClass: "thumb-tech",
-                    channel: "User Uploads",
-                    views: "0 views",
-                    viewers: 1,
+                    thumbClass: "thumb-tech", 
+                    channel: insertedVideo.channel,
+                    views: insertedVideo.views,
+                    viewers: insertedVideo.viewers,
                     isUploaded: true
                 };
 
@@ -1334,6 +1397,7 @@
         // Init
         overlay.classList.add('hidden'); // Hide buffering initially
         renderGrid();
+        fetchVideosFromDatabase();
         addLog("System initialized. Edge nodes ready.", "success");
         addLog("Awaiting client requests.", "info");
     </script>
